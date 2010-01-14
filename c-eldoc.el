@@ -1,8 +1,54 @@
-;;
+;;; c-eldoc.el --- helpful description of the arguments to C functions
+
+;; Copyright (C) 2004 Paul Pogonyshev
+;; Copyright (C) 2004, 2005 Matt Strange
+;; Copyright (C) 2010 Nathaniel Flath
+
+;; This file is NOT a part of GNU Emacs
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation; either version 2 of the
+;; License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful, but
+;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+;; General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program; if not, write to the Free Software
+;; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+;; USA
+
+;;; Commentary:
+
 ;; To enable: put the following in your .emacs file:
 ;; 
 ;; (add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
-;;
+
+;; Nathaniel has submitted a caching patch to make this workable on large projects "like the emacs
+;; codebase"
+;; v0.5 01/02/2010
+
+;; Provides helpful description of the arguments to C functions.
+;; Uses child process grep and preprocessor commands for speed.
+;; v0.4 01/16/2005
+
+;; Your improvements are appreciated: I am no longer maintaining this code
+;; m_strange at mail dot utexas dot edu.  Instead, direct all requests to
+;; flat0103@gmail.com
+
+;;; Code:
+
+(require 'eldoc)
+;; without this, you can't compile this file and have it work properly
+;; since the `c-save-buffer-state' macro needs to be known as such
+(require 'cc-defs)
+(require 'cl)
+
+;; make sure that the opening parenthesis in C will work
+(eldoc-add-command 'c-electric-paren)
 
 ;;if cache.el isn't loaded, define the cache functions
 (unless (fboundp 'cache-make-cache)
@@ -68,7 +114,7 @@ to the created hash table."
 ;; variables to fix it
 (defvar c-eldoc-cpp-macro-arguments "-dD -w -P")
 (defvar c-eldoc-cpp-normal-arguments "-w -P")
-(defvar c-eldoc-cpp-command "cpp ")
+(defvar c-eldoc-cpp-command "/lib/cpp ")
 (defvar c-eldoc-includes
   "`pkg-config gtk+-2.0 --cflags` -I./ -I../ "
   "List of commonly used packages/include directories - For
