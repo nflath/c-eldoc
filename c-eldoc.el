@@ -51,7 +51,8 @@
 (eldoc-add-command 'c-electric-paren)
 
 ;;if cache.el isn't loaded, define the cache functions
-(unless (fboundp 'cache-make-cache)
+(if (locate-library "cache")
+    (require 'cache)
   (defun* cache-make-cache (init-fun test-fun cleanup-fun
                                      &optional &key
                                      (test #'eql)
