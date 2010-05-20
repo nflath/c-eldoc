@@ -115,7 +115,7 @@ to the created hash table."
 ;; variables to fix it
 (defvar c-eldoc-cpp-macro-arguments "-dD -w -P")
 (defvar c-eldoc-cpp-normal-arguments "-w -P")
-(defvar c-eldoc-cpp-command "/lib/cpp ")
+(defvar c-eldoc-cpp-command "/usr/bin/cpp ")
 (defvar c-eldoc-includes
   "`pkg-config gtk+-2.0 --cflags` -I./ -I../ "
   "List of commonly used packages/include directories - For
