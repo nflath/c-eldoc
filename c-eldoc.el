@@ -27,6 +27,10 @@
 ;;
 ;; (add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
 
+;; CDK -- made changes to the regular expression to make sure that function calls in macros do not 
+;; override actual function definitions while searching 
+;; v0.6 20/05/2010
+
 ;; Nathaniel has submitted a caching patch to make this workable on large projects "like the emacs
 ;; codebase"
 ;; v0.5 01/02/2010
@@ -115,7 +119,7 @@ to the created hash table."
 ;; variables to fix it
 (defvar c-eldoc-cpp-macro-arguments "-dD -w -P")
 (defvar c-eldoc-cpp-normal-arguments "-w -P")
-(defvar c-eldoc-cpp-command "/lib/cpp ")
+(defvar c-eldoc-cpp-command "/usr/bin/cpp ")
 (defvar c-eldoc-includes
   "`pkg-config gtk+-2.0 --cflags` -I./ -I../ "
   "List of commonly used packages/include directories - For
@@ -239,8 +243,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   "Returns documentation string for the current symbol."
   (let* ((current-function-cons (c-eldoc-function-and-argument (- (point) 1000)))
          (current-function (car current-function-cons))
-         (current-function-regexp (concat "[ \t\n]+[*]*" current-function "[ \t\n]*("))
-         (current-macro-regexp (concat "#define[ \t\n]+[*]*" current-function "[ \t\n]*("))
+         (current-function-regexp (concat "[ \t\n]*[0-9a-zA-Z]+[ \t\n]+" current-function "[ \t\n]*("))
+         (current-macro-regexp (concat "#define[ \t\n]+" current-function "[ \t\n]*("))
          (current-buffer (current-buffer))
          (tag-buffer)
          (function-name-point)
