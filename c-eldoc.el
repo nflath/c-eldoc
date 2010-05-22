@@ -147,7 +147,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
 
 (defun call-c-eldoc-cleanup ()
   (if (eq major-mode 'c-mode)
-      (c-eldoc-cleanup (concat "*" buffer-file-name "-preprocessed*"))))
+      (ignore-errors (c-eldoc-cleanup (concat "*" buffer-file-name "-preprocessed*")))))
 
 (defun c-eldoc-cleanup (preprocessed-buffer)
   (kill-buffer preprocessed-buffer))
