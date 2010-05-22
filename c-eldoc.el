@@ -27,7 +27,7 @@
 ;;
 ;; (add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
 
-;; CDK -- made changes to the regular expression to make sure that function calls in macros do not 
+;; Chinmay Kamat -- made changes to the regular expression to make sure that function calls in macros do not 
 ;; override actual function definitions while searching 
 ;; v0.6 20/05/2010
 
@@ -145,6 +145,10 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   "Returns whether or not old-time is less than c-eldoc-buffer-regenerate-time seconds ago."
   (> (c-eldoc-time-diff (current-time) old-time) c-eldoc-buffer-regenerate-time))
 
+(defun call-c-eldoc-cleanup ()
+  (if (eq major-mode 'c-mode)
+      (ignore-errors (c-eldoc-cleanup (concat "*" buffer-file-name "-preprocessed*")))))
+
 (defun c-eldoc-cleanup (preprocessed-buffer)
   (kill-buffer preprocessed-buffer))
 
@@ -157,7 +161,10 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   (interactive)
   (set (make-local-variable 'eldoc-documentation-function)
        'c-eldoc-print-current-symbol-info)
-  (turn-on-eldoc-mode))
+  (turn-on-eldoc-mode)
+  (add-hook 'c-mode-hook 
+	  '(lambda () 
+	     (add-hook 'kill-buffer-hook 'call-c-eldoc-cleanup))))
 
 ;; call the preprocessor on the current file
 ;;
