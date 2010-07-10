@@ -4,7 +4,35 @@
 ;; Copyright (C) 2004, 2005 Matt Strange
 ;; Copyright (C) 2010 Nathaniel Flath
 
+;; Author: Nathaniel Flath <nflath@gmail.com>
+;; URL: http://github.com/nflath/c-eldoc
+;; Version: 0.6
+
 ;; This file is NOT a part of GNU Emacs
+
+;;; Commentary:
+
+;; To enable: put the following in your .emacs file:
+;;
+;; (add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
+
+;; Chinmay Kamat -- made changes to the regular expression to make sure that function calls in macros do not
+;; override actual function definitions while searching
+;; v0.6 20/05/2010
+
+;; Nathaniel has submitted a caching patch to make this workable on large projects "like the emacs
+;; codebase"
+;; v0.5 01/02/2010
+
+;; Provides helpful description of the arguments to C functions.
+;; Uses child process grep and preprocessor commands for speed.
+;; v0.4 01/16/2005
+
+;; Your improvements are appreciated: I am no longer maintaining this code
+;; m_strange at mail dot utexas dot edu.  Instead, direct all requests to
+;; flat0103@gmail.com
+
+;;; License:
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -20,28 +48,6 @@
 ;; along with this program; if not, write to the Free Software
 ;; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 ;; USA
-
-;;; Commentary:
-
-;; To enable: put the following in your .emacs file:
-;;
-;; (add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
-
-;; Chinmay Kamat -- made changes to the regular expression to make sure that function calls in macros do not 
-;; override actual function definitions while searching 
-;; v0.6 20/05/2010
-
-;; Nathaniel has submitted a caching patch to make this workable on large projects "like the emacs
-;; codebase"
-;; v0.5 01/02/2010
-
-;; Provides helpful description of the arguments to C functions.
-;; Uses child process grep and preprocessor commands for speed.
-;; v0.4 01/16/2005
-
-;; Your improvements are appreciated: I am no longer maintaining this code
-;; m_strange at mail dot utexas dot edu.  Instead, direct all requests to
-;; flat0103@gmail.com
 
 ;;; Code:
 
@@ -114,7 +120,6 @@ to the created hash table."
              (cons val (funcall (cadr cache)))
              (car cache))))
 
-
 ;; if you've got a non-GNU preprocessor with funny options, set these
 ;; variables to fix it
 (defvar c-eldoc-cpp-macro-arguments "-dD -w -P")
@@ -129,7 +134,6 @@ to the created hash table."
 (defvar c-eldoc-reserved-words
   (list "if" "else" "switch" "while" "for" "sizeof")
   "List of commands that eldoc will not check.")
-
 
 (defvar c-eldoc-buffer-regenerate-time
   120
@@ -156,14 +160,15 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   (cache-make-cache #'current-time #'c-eldoc-time-difference #'c-eldoc-cleanup)
   "Cache of buffer->preprocessed file used to speed up finding arguments")
 
+;;;###autoload
 (defun c-turn-on-eldoc-mode ()
   "Enable c-eldoc-mode"
   (interactive)
   (set (make-local-variable 'eldoc-documentation-function)
        'c-eldoc-print-current-symbol-info)
   (turn-on-eldoc-mode)
-  (add-hook 'c-mode-hook 
-	  '(lambda () 
+  (add-hook 'c-mode-hook
+	  '(lambda ()
 	     (add-hook 'kill-buffer-hook 'call-c-eldoc-cleanup))))
 
 ;; call the preprocessor on the current file
@@ -246,6 +251,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                              '(face bold) arguments))
       arguments)))
 
+;;;###autoload
 (defun c-eldoc-print-current-symbol-info ()
   "Returns documentation string for the current symbol."
   (let* ((current-function-cons (c-eldoc-function-and-argument (- (point) 1000)))
