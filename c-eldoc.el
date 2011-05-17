@@ -4,7 +4,7 @@
 ;; Copyright (C) 2004, 2005 Matt Strange
 ;; Copyright (C) 2010 Nathaniel Flath
 
-;; Author: Nathaniel Flath <nflath@gmail.com>
+;; Author: Nathaniel Flath <flat0103@gmail.com>
 ;; URL: http://github.com/nflath/c-eldoc
 ;; Version: 0.6
 
