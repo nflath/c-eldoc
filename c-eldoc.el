@@ -248,7 +248,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
       (when (and pos
                  (setq pos (string-match "[^ ,()]" arguments pos)))
         (add-text-properties pos (string-match "[,)]" arguments pos)
-                             '(face bold) arguments))
+                             '(face eldoc-highlight-function-argument) arguments))
       arguments)))
 
 ;;;###autoload
