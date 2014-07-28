@@ -136,7 +136,7 @@ to the created hash table."
   "List of commands that eldoc will not check.")
 
 (defvar c-eldoc-buffer-regenerate-time
-  120
+  30
   "Time to keep a preprocessed buffer around.")
 
 (defun c-eldoc-time-diff (t1 t2)
@@ -316,6 +316,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                       (c-eldoc-format-arguments-string arguments
                                                        (cdr current-function-cons))))
           (set-buffer current-buffer))))))
+
+(add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
 
 (provide 'c-eldoc)
 ;;; c-eldoc.el ends here
