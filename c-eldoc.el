@@ -256,7 +256,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   "Returns documentation string for the current symbol."
   (let* ((current-function-cons (c-eldoc-function-and-argument (- (point) 1000)))
          (current-function (car current-function-cons))
-         (current-function-regexp (concat "[[:alnum:]_()[:space:]]+[[:space:]]+" current-function "[[:space:]]*("))
+         (current-function-regexp (concat "[[:alnum:]_()[:space:]]+[[:space:]*&]+" current-function "[[:space:]]*("))
          (current-macro-regexp (concat "#define[ \t\n]+" current-function "[ \t\n]*("))
          (current-buffer (current-buffer))
          (tag-buffer)
