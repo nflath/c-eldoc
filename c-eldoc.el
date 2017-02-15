@@ -129,7 +129,8 @@ to the created hash table."
   "`pkg-config gtk+-2.0 --cflags` -I./ -I../ "
   "List of commonly used packages/include directories - For
   example, SDL or OpenGL.  This shouldn't slow down cpp, even if
-  you've got a lot of them.")
+  you've got a lot of them.
+  It could be a string, list or function.")
 
 (defvar c-eldoc-reserved-words
   (list "if" "else" "switch" "while" "for" "sizeof")
@@ -186,9 +187,14 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   (let ((output-buffer (cache-gethash (current-buffer) c-eldoc-buffers)))
     (if output-buffer output-buffer
       (let* ((this-name (concat "*" buffer-file-name "-preprocessed*"))
+             (includes (typecase c-eldoc-includes
+                         (string c-eldoc-includes)
+                         (function (funcall c-eldoc-includes))
+                         (list (mapconcat #'(lambda (p) (concat "-I" p))
+                                          c-eldoc-includes " "))))
              (preprocessor-command (concat c-eldoc-cpp-command " "
                                            c-eldoc-cpp-macro-arguments " "
-                                           c-eldoc-includes " "
+                                           includes " "
                                            buffer-file-name))
              (cur-buffer (current-buffer))
              (output-buffer (generate-new-buffer this-name)))
@@ -196,7 +202,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
         ;; run the second time for normal functions
         (setq preprocessor-command (concat c-eldoc-cpp-command " "
                                            c-eldoc-cpp-normal-arguments " "
-                                           c-eldoc-includes " "
+                                           includes " "
                                            buffer-file-name))
         (call-process-shell-command preprocessor-command nil output-buffer nil)
         (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
