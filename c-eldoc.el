@@ -149,6 +149,10 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   "Returns whether or not old-time is less than c-eldoc-buffer-regenerate-time seconds ago."
   (> (c-eldoc-time-diff (current-time) old-time) c-eldoc-buffer-regenerate-time))
 
+(defun c-eldoc-buffer-mod-tick-difference (old-tick)
+  "Returns whether or not modification ticks is greater than c-eldoc-buffer-regenerate-time."
+  (> (- (buffer-chars-modified-tick) old-tick) c-eldoc-buffer-regenerate-time))
+
 (defun call-c-eldoc-cleanup ()
   (if (eq major-mode 'c-mode)
       (ignore-errors (c-eldoc-cleanup (concat "*" buffer-file-name "-preprocessed*")))))
@@ -157,7 +161,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   (kill-buffer preprocessed-buffer))
 
 (defvar c-eldoc-buffers
-  (cache-make-cache #'current-time #'c-eldoc-time-difference #'c-eldoc-cleanup)
+  ;; (cache-make-cache #'current-time #'c-eldoc-time-difference #'c-eldoc-cleanup)
+  (cache-make-cache #'buffer-chars-modified-tick #'c-eldoc-buffer-mod-tick-difference #'c-eldoc-cleanup)
   "Cache of buffer->preprocessed file used to speed up finding arguments")
 
 ;;;###autoload
