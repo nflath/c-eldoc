@@ -198,6 +198,10 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                                            buffer-file-name))
              (cur-buffer (current-buffer))
              (output-buffer (generate-new-buffer this-name)))
+        (with-current-buffer output-buffer
+          (font-lock-mode -1)
+          (jit-lock-mode nil)
+          (buffer-disable-undo))
         (call-process-shell-command preprocessor-command nil output-buffer nil)
         ;; run the second time for normal functions
         (setq preprocessor-command (concat c-eldoc-cpp-command " "
