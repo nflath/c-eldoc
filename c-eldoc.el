@@ -194,8 +194,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                                           c-eldoc-includes " "))))
              (preprocessor-command (concat c-eldoc-cpp-command " "
                                            c-eldoc-cpp-macro-arguments " "
-                                           includes " "
-                                           buffer-file-name))
+                                           includes " '"
+                                           buffer-file-name "'"))
              (cur-buffer (current-buffer))
              (output-buffer (generate-new-buffer this-name)))
         (with-current-buffer output-buffer
@@ -206,8 +206,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
         ;; run the second time for normal functions
         (setq preprocessor-command (concat c-eldoc-cpp-command " "
                                            c-eldoc-cpp-normal-arguments " "
-                                           includes " "
-                                           buffer-file-name))
+                                           includes " '"
+                                           buffer-file-name "'"))
         (call-process-shell-command preprocessor-command nil output-buffer nil)
         (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
         (with-current-buffer output-buffer
