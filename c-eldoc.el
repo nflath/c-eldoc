@@ -140,6 +140,10 @@ to the created hash table."
   30
   "Time to keep a preprocessed buffer around.")
 
+(defvar c-eldoc-get-buffer-hook
+  '()
+  "Hooks to run at start of c-eldoc-get-buffer execution.")
+
 (defun c-eldoc-time-diff (t1 t2)
   "Return the difference between the two times, in seconds.
 T1 and T2 are time values (as returned by `current-time' for example)."
@@ -186,34 +190,36 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   ;; run the first time for macros
   (let ((output-buffer (cache-gethash (current-buffer) c-eldoc-buffers)))
     (if output-buffer output-buffer
-      (let* ((this-name (concat "*" buffer-file-name "-preprocessed*"))
-             (includes (typecase c-eldoc-includes
-                         (string c-eldoc-includes)
-                         (function (funcall c-eldoc-includes))
-                         (list (mapconcat #'(lambda (p) (concat "-I" p))
-                                          c-eldoc-includes " "))))
-             (preprocessor-command (concat c-eldoc-cpp-command " "
-                                           c-eldoc-cpp-macro-arguments " "
-                                           includes " '"
-                                           buffer-file-name "'"))
-             (cur-buffer (current-buffer))
-             (output-buffer (generate-new-buffer this-name)))
-        (with-current-buffer output-buffer
-          (font-lock-mode -1)
-          (jit-lock-mode nil)
-          (buffer-disable-undo))
-        (call-process-shell-command preprocessor-command nil output-buffer nil)
-        ;; run the second time for normal functions
-        (setq preprocessor-command (concat c-eldoc-cpp-command " "
-                                           c-eldoc-cpp-normal-arguments " "
-                                           includes " '"
-                                           buffer-file-name "'"))
-        (call-process-shell-command preprocessor-command nil output-buffer nil)
-        (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
-        (with-current-buffer output-buffer
-          (make-local-variable 'c-eldoc-symbol-info-cache)
-          (setq c-eldoc-symbol-info-cache (make-hash-table :test #'equal :size 16)))
-        output-buffer))))
+      (progn
+        (run-hooks 'c-eldoc-get-buffer-hook)
+        (let* ((this-name (concat "*" buffer-file-name "-preprocessed*"))
+               (includes (typecase c-eldoc-includes
+                           (string c-eldoc-includes)
+                           (function (funcall c-eldoc-includes))
+                           (list (mapconcat #'(lambda (p) (concat "-I" p))
+                                            c-eldoc-includes " "))))
+               (preprocessor-command (concat c-eldoc-cpp-command " "
+                                             c-eldoc-cpp-macro-arguments " "
+                                             includes " '"
+                                             buffer-file-name "'"))
+               (cur-buffer (current-buffer))
+               (output-buffer (generate-new-buffer this-name)))
+          (with-current-buffer output-buffer
+            (font-lock-mode -1)
+            (jit-lock-mode nil)
+            (buffer-disable-undo))
+          (call-process-shell-command preprocessor-command nil output-buffer nil)
+          ;; run the second time for normal functions
+          (setq preprocessor-command (concat c-eldoc-cpp-command " "
+                                             c-eldoc-cpp-normal-arguments " "
+                                             includes " '"
+                                             buffer-file-name "'"))
+          (call-process-shell-command preprocessor-command nil output-buffer nil)
+          (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
+          (with-current-buffer output-buffer
+            (make-local-variable 'c-eldoc-symbol-info-cache)
+            (setq c-eldoc-symbol-info-cache (make-hash-table :test #'equal :size 16)))
+          output-buffer)))))
 
 (defun c-eldoc-function-and-argument (&optional limit)
   "Finds the current function and position in argument list."
