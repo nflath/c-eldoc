@@ -129,7 +129,8 @@ to the created hash table."
   "`pkg-config gtk+-2.0 --cflags` -I./ -I../ "
   "List of commonly used packages/include directories - For
   example, SDL or OpenGL.  This shouldn't slow down cpp, even if
-  you've got a lot of them.")
+  you've got a lot of them.
+  It could be a string, list or function.")
 
 (defvar c-eldoc-reserved-words
   (list "if" "else" "switch" "while" "for" "sizeof")
@@ -138,6 +139,10 @@ to the created hash table."
 (defvar c-eldoc-buffer-regenerate-time
   30
   "Time to keep a preprocessed buffer around.")
+
+(defvar c-eldoc-get-buffer-hook
+  '()
+  "Hooks to run at start of c-eldoc-get-buffer execution.")
 
 (defun c-eldoc-time-diff (t1 t2)
   "Return the difference between the two times, in seconds.
@@ -149,6 +154,10 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   "Returns whether or not old-time is less than c-eldoc-buffer-regenerate-time seconds ago."
   (> (c-eldoc-time-diff (current-time) old-time) c-eldoc-buffer-regenerate-time))
 
+(defun c-eldoc-buffer-mod-tick-difference (old-tick)
+  "Returns whether or not modification ticks is greater than c-eldoc-buffer-regenerate-time."
+  (> (- (buffer-chars-modified-tick) old-tick) c-eldoc-buffer-regenerate-time))
+
 (defun call-c-eldoc-cleanup ()
   (if (eq major-mode 'c-mode)
       (ignore-errors (c-eldoc-cleanup (concat "*" buffer-file-name "-preprocessed*")))))
@@ -157,7 +166,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   (kill-buffer preprocessed-buffer))
 
 (defvar c-eldoc-buffers
-  (cache-make-cache #'current-time #'c-eldoc-time-difference #'c-eldoc-cleanup)
+  ;; (cache-make-cache #'current-time #'c-eldoc-time-difference #'c-eldoc-cleanup)
+  (cache-make-cache #'buffer-chars-modified-tick #'c-eldoc-buffer-mod-tick-difference #'c-eldoc-cleanup)
   "Cache of buffer->preprocessed file used to speed up finding arguments")
 
 ;;;###autoload
@@ -177,25 +187,39 @@ T1 and T2 are time values (as returned by `current-time' for example)."
 ;; to get normal function declarations
 (defun c-eldoc-get-buffer (function-name)
   "Call the preprocessor on the current file"
-;; run the first time for macros
+  ;; run the first time for macros
   (let ((output-buffer (cache-gethash (current-buffer) c-eldoc-buffers)))
     (if output-buffer output-buffer
-      (let* ((this-name (concat "*" buffer-file-name "-preprocessed*"))
-             (preprocessor-command (concat c-eldoc-cpp-command " "
-                                           c-eldoc-cpp-macro-arguments " "
-                                           c-eldoc-includes " "
-                                           buffer-file-name))
-             (cur-buffer (current-buffer))
-             (output-buffer (generate-new-buffer this-name)))
-        (call-process-shell-command preprocessor-command nil output-buffer nil)
-        ;; run the second time for normal functions
-        (setq preprocessor-command (concat c-eldoc-cpp-command " "
-                                           c-eldoc-cpp-normal-arguments " "
-                                           c-eldoc-includes " "
-                                           buffer-file-name))
-        (call-process-shell-command preprocessor-command nil output-buffer nil)
-        (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
-        output-buffer))))
+      (progn
+        (run-hooks 'c-eldoc-get-buffer-hook)
+        (let* ((this-name (concat "*" buffer-file-name "-preprocessed*"))
+               (includes (typecase c-eldoc-includes
+                           (string c-eldoc-includes)
+                           (function (funcall c-eldoc-includes))
+                           (list (mapconcat #'(lambda (p) (concat "-I" p))
+                                            c-eldoc-includes " "))))
+               (preprocessor-command (concat c-eldoc-cpp-command " "
+                                             c-eldoc-cpp-macro-arguments " "
+                                             includes " '"
+                                             buffer-file-name "'"))
+               (cur-buffer (current-buffer))
+               (output-buffer (generate-new-buffer this-name)))
+          (with-current-buffer output-buffer
+            (font-lock-mode -1)
+            (jit-lock-mode nil)
+            (buffer-disable-undo))
+          (call-process-shell-command preprocessor-command nil output-buffer nil)
+          ;; run the second time for normal functions
+          (setq preprocessor-command (concat c-eldoc-cpp-command " "
+                                             c-eldoc-cpp-normal-arguments " "
+                                             includes " '"
+                                             buffer-file-name "'"))
+          (call-process-shell-command preprocessor-command nil output-buffer nil)
+          (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
+          (with-current-buffer output-buffer
+            (make-local-variable 'c-eldoc-symbol-info-cache)
+            (setq c-eldoc-symbol-info-cache (make-hash-table :test #'equal :size 16)))
+          output-buffer)))))
 
 (defun c-eldoc-function-and-argument (&optional limit)
   "Finds the current function and position in argument list."
@@ -256,66 +280,74 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   "Returns documentation string for the current symbol."
   (let* ((current-function-cons (c-eldoc-function-and-argument (- (point) 1000)))
          (current-function (car current-function-cons))
-         (current-function-regexp (concat "[ \t\n]*[0-9a-zA-Z]+[ \t\n*]+" current-function "[ \t\n]*("))
-         (current-macro-regexp (concat "#define[ \t\n]+" current-function "[ \t\n]*("))
+         (current-function-regexp (concat "[[:alnum:]_()[:space:]]+[[:space:]*&]+"
+                                          current-function
+                                          "[[:space:]]*("))
+         (current-macro-regexp (concat "#define[ \t\n]+"
+                                       current-function
+                                       "[ \t\n]*("))
          (current-buffer (current-buffer))
          (tag-buffer)
          (function-name-point)
          (arguments)
-         (type-face 'font-lock-type-face))
+         (type-face 'font-lock-type-face)
+         ret)
     (when (and current-function
                (not (member current-function c-eldoc-reserved-words)))
       (when (setq tag-buffer (c-eldoc-get-buffer current-function))
         ;; setup the buffer
-        (set-buffer tag-buffer)
-        (goto-char (point-min))
-        (prog1
-            ;; protected regexp search
-            (when (condition-case nil
-                      (progn
-                        (if (not (re-search-forward current-macro-regexp (point-max) t))
-                            (re-search-forward current-function-regexp))
-                        t)
-                    (error (prog1 nil
-                             (message "Function doesn't exist..."))))
-              ;; move outside arguments list
-              (search-backward "(")
-              (c-skip-ws-backward)
-              (setq function-name-point (point))
-              (forward-sexp)
-              (setq arguments (buffer-substring-no-properties
-                               function-name-point (point)))
-              (goto-char function-name-point)
-              (backward-char (length current-function))
-              (c-skip-ws-backward)
-              (setq function-name-point (point))
-              (search-backward-regexp "[};/#]" (point-min) t)
-              ;; check for macros
-              (if (= (char-after) ?#)
-                  (let ((is-define (looking-at "#[[:space:]]*define"))
-                        (preprocessor-point (point)))
-                    (while (prog2 (end-of-line)
-                               (= (char-before) ?\\)
-                             (forward-char)))
-                    (when (and is-define (> (point) function-name-point))
-                      (goto-char preprocessor-point)
-                      (setq type-face 'font-lock-preprocessor-face)))
-                (forward-char)
-                (when (looking-back "//")
-                  (end-of-line)))
-              (c-skip-ws-forward)
-              ;; colorize
-              (concat (propertize (buffer-substring-no-properties
-                                   (point)
-                                   function-name-point)
-                                  'face type-face)
-                      " "
-                      (propertize current-function
-                                  'face 'font-lock-function-name-face)
-                      " "
-                      (c-eldoc-format-arguments-string arguments
-                                                       (cdr current-function-cons))))
-          (set-buffer current-buffer))))))
+        (with-current-buffer tag-buffer
+          (setq ret (gethash current-function c-eldoc-symbol-info-cache))
+          (unless ret
+            (goto-char (point-min))
+            (setq ret
+                  ;; protected regexp search
+                  (when (condition-case nil
+                            (progn
+                              (if (not (re-search-forward current-macro-regexp (point-max) t))
+                                  (re-search-forward current-function-regexp))
+                              t)
+                          (error (prog1 nil
+                                   (message "Function doesn't exist..."))))
+                    ;; move outside arguments list
+                    (search-backward "(")
+                    (c-skip-ws-backward)
+                    (setq function-name-point (point))
+                    (forward-sexp)
+                    (setq arguments (buffer-substring-no-properties
+                                     function-name-point (point)))
+                    (goto-char function-name-point)
+                    (backward-char (length current-function))
+                    (c-skip-ws-backward)
+                    (setq function-name-point (point))
+                    (search-backward-regexp "[};/#]" (point-min) t)
+                    ;; check for macros
+                    (if (= (char-after) ?#)
+                        (let ((is-define (looking-at "#[[:space:]]*define"))
+                              (preprocessor-point (point)))
+                          (while (prog2 (end-of-line)
+                                     (= (char-before) ?\\)
+                                   (forward-char)))
+                          (when (and is-define (> (point) function-name-point))
+                            (goto-char preprocessor-point)
+                            (setq type-face 'font-lock-preprocessor-face)))
+                      (forward-char)
+                      (when (looking-back "//")
+                        (end-of-line)))
+                    (c-skip-ws-forward)
+                    (list (buffer-substring-no-properties (point)
+                                                          function-name-point)
+                          current-function arguments))))
+          (puthash current-function (or ret :nil) c-eldoc-symbol-info-cache))))
+
+    (when (and ret (not (eq :nil ret)))
+      (concat (propertize (car ret) 'face type-face)
+              " "
+              (propertize (cadr ret)
+                          'face 'font-lock-function-name-face)
+              " "
+              (c-eldoc-format-arguments-string (caddr ret)
+                                               (cdr current-function-cons))))))
 
 (provide 'c-eldoc)
 ;;; c-eldoc.el ends here
