@@ -317,7 +317,5 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                                                        (cdr current-function-cons))))
           (set-buffer current-buffer))))))
 
-(add-hook 'c-mode-hook 'c-turn-on-eldoc-mode)
-
 (provide 'c-eldoc)
 ;;; c-eldoc.el ends here
