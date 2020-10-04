@@ -55,7 +55,9 @@
 ;; without this, you can't compile this file and have it work properly
 ;; since the `c-save-buffer-state' macro needs to be known as such
 (require 'cc-defs)
-(require 'cl)
+(require 'cc-engine)
+(eval-when-compile
+  (require 'cl-lib))
 
 ;; make sure that the opening parenthesis in C will work
 (eldoc-add-command 'c-electric-paren)
@@ -63,7 +65,7 @@
 ;;if cache.el isn't loaded, define the cache functions
 (if (locate-library "cache")
     (require 'cache)
-  (defun* cache-make-cache (init-fun test-fun cleanup-fun
+  (cl-defun cache-make-cache (init-fun test-fun cleanup-fun
                                      &optional &key
                                      (test #'eql)
                                      (size 65)
@@ -148,7 +150,7 @@ to the created hash table."
   "Return the difference between the two times, in seconds.
 T1 and T2 are time values (as returned by `current-time' for example)."
   ;; Pacify byte-compiler with `symbol-function'.
-  (time-to-seconds (subtract-time t1 t2)))
+  (time-to-seconds (time-subtract t1 t2)))
 
 (defun c-eldoc-time-difference (old-time)
   "Returns whether or not old-time is less than c-eldoc-buffer-regenerate-time seconds ago."
@@ -181,6 +183,8 @@ T1 and T2 are time values (as returned by `current-time' for example)."
 	  '(lambda ()
 	     (add-hook 'kill-buffer-hook 'call-c-eldoc-cleanup))))
 
+(defvar-local c-eldoc-symbol-info-cache nil)
+
 ;; call the preprocessor on the current file
 ;;
 ;; run cpp the first time to get macro declarations, the second time
@@ -193,7 +197,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
       (progn
         (run-hooks 'c-eldoc-get-buffer-hook)
         (let* ((this-name (concat "*" buffer-file-name "-preprocessed*"))
-               (includes (typecase c-eldoc-includes
+               (includes (cl-typecase c-eldoc-includes
                            (string c-eldoc-includes)
                            (function (funcall c-eldoc-includes))
                            (list (mapconcat #'(lambda (p) (concat "-I" p))
@@ -217,7 +221,6 @@ T1 and T2 are time values (as returned by `current-time' for example)."
           (call-process-shell-command preprocessor-command nil output-buffer nil)
           (cache-puthash cur-buffer output-buffer c-eldoc-buffers)
           (with-current-buffer output-buffer
-            (make-local-variable 'c-eldoc-symbol-info-cache)
             (setq c-eldoc-symbol-info-cache (make-hash-table :test #'equal :size 16)))
           output-buffer)))))
 
@@ -332,7 +335,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                             (goto-char preprocessor-point)
                             (setq type-face 'font-lock-preprocessor-face)))
                       (forward-char)
-                      (when (looking-back "//")
+                      (when (looking-back "//" nil)
                         (end-of-line)))
                     (c-skip-ws-forward)
                     (list (buffer-substring-no-properties (point)
