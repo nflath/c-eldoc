@@ -129,10 +129,10 @@ to the created hash table."
 (defvar c-eldoc-cpp-command (concat (executable-find "/usr/bin/cpp") " "))
 (defvar c-eldoc-includes
   "`pkg-config gtk+-2.0 --cflags` -I./ -I../ "
-  "List of commonly used packages/include directories - For
-  example, SDL or OpenGL.  This shouldn't slow down cpp, even if
-  you've got a lot of them.
-  It could be a string, list or function.")
+  "List of commonly used packages/include directories.
+For example, SDL or OpenGL.  This shouldn't slow down cpp, even if
+you've got a lot of them.
+It could be a string, list or function.")
 
 (defvar c-eldoc-reserved-words
   (list "if" "else" "switch" "while" "for" "sizeof")
@@ -144,7 +144,7 @@ to the created hash table."
 
 (defvar c-eldoc-get-buffer-hook
   '()
-  "Hooks to run at start of c-eldoc-get-buffer execution.")
+  "Hooks to run at start of `c-eldoc-get-buffer' execution.")
 
 (defun c-eldoc-time-diff (t1 t2)
   "Return the difference between the two times, in seconds.
@@ -153,28 +153,30 @@ T1 and T2 are time values (as returned by `current-time' for example)."
   (time-to-seconds (time-subtract t1 t2)))
 
 (defun c-eldoc-time-difference (old-time)
-  "Returns whether or not old-time is less than c-eldoc-buffer-regenerate-time seconds ago."
+  "Return whether or not OLD-TIME is less than `c-eldoc-buffer-regenerate-time' seconds ago."
   (> (c-eldoc-time-diff (current-time) old-time) c-eldoc-buffer-regenerate-time))
 
 (defun c-eldoc-buffer-mod-tick-difference (old-tick)
-  "Returns whether or not modification ticks is greater than c-eldoc-buffer-regenerate-time."
+  "Return whether or not modification ticks, OLD-TICK, is greater than `c-eldoc-buffer-regenerate-time'."
   (> (- (buffer-chars-modified-tick) old-tick) c-eldoc-buffer-regenerate-time))
 
 (defun call-c-eldoc-cleanup ()
+  "Cleanup c-eldoc buffer."
   (if (eq major-mode 'c-mode)
       (ignore-errors (c-eldoc-cleanup (concat "*" buffer-file-name "-preprocessed*")))))
 
 (defun c-eldoc-cleanup (preprocessed-buffer)
+  "Perform cleanup - kill PREPROCESSED-BUFFER."
   (kill-buffer preprocessed-buffer))
 
 (defvar c-eldoc-buffers
   ;; (cache-make-cache #'current-time #'c-eldoc-time-difference #'c-eldoc-cleanup)
   (cache-make-cache #'buffer-chars-modified-tick #'c-eldoc-buffer-mod-tick-difference #'c-eldoc-cleanup)
-  "Cache of buffer->preprocessed file used to speed up finding arguments")
+  "Cache of buffer->preprocessed file used to speed up finding arguments.")
 
 ;;;###autoload
 (defun c-turn-on-eldoc-mode ()
-  "Enable c-eldoc-mode"
+  "Enable c-eldoc-mode."
   (interactive)
   (set (make-local-variable 'eldoc-documentation-function)
        'c-eldoc-print-current-symbol-info)
@@ -190,7 +192,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
 ;; run cpp the first time to get macro declarations, the second time
 ;; to get normal function declarations
 (defun c-eldoc-get-buffer (function-name)
-  "Call the preprocessor on the current file"
+  "Call the preprocessor on the current file."
   ;; run the first time for macros
   (let ((output-buffer (cache-gethash (current-buffer) c-eldoc-buffers)))
     (if output-buffer output-buffer
@@ -225,14 +227,18 @@ T1 and T2 are time values (as returned by `current-time' for example)."
           output-buffer)))))
 
 (defun c-eldoc-function-and-argument (&optional limit)
-  "Finds the current function and position in argument list."
+  "Find function name and its argument position at point.
+If specified, LIMIT is the smallest buffer position when trying
+to find the previous C token.
+Return (function-name-string . argument-position-int) cons cell."
   (let* ((literal-limits (c-literal-limits))
          (literal-type (c-literal-type literal-limits)))
     (save-excursion
-      ;; if this is a string, move out to function domain
+      ;; if this is a string, move before it: out to function domain
       (when (eq literal-type 'string)
         (goto-char (car literal-limits))
         (setq literal-type nil))
+      ;; ignore when inside a comment
       (if literal-type
           nil
         (c-save-buffer-state ((argument-index 1))
@@ -252,7 +258,9 @@ T1 and T2 are time values (as returned by `current-time' for example)."
                     argument-index))))))))
 
 (defun c-eldoc-format-arguments-string (arguments index)
-  "Formats the argument list of a function."
+  "Format the argument list of a function.
+ARGUMENTS := argument list.
+INDEX := integer: identifies the argument."
   (let ((paren-pos (string-match "(" arguments))
         (pos 0))
     (when paren-pos
@@ -280,7 +288,7 @@ T1 and T2 are time values (as returned by `current-time' for example)."
 
 ;;;###autoload
 (defun c-eldoc-print-current-symbol-info ()
-  "Returns documentation string for the current symbol."
+  "Return documentation string for the current symbol."
   (let* ((current-function-cons (c-eldoc-function-and-argument (- (point) 1000)))
          (current-function (car current-function-cons))
          (current-function-regexp (concat "[[:alnum:]_()[:space:]]+[[:space:]*&]+"
