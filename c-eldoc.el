@@ -90,7 +90,7 @@ being deleted.
 
 Note that values are only deleted from the cache when accessed.
 
-This will return a list of 4 elements: a has table and the 3
+This will return a list of 4 elements: a hash table and the 3
 arguments.  All hash-table functions will work on the car of this
 list, although if accessed directly the lookups will return a pair
 (value, (init-fun)).
